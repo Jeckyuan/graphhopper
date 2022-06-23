@@ -34,5 +34,7 @@ public interface DecimalEncodedValue extends EncodedValue {
      */
     double getNextStorableValue(double value);
 
+    double getMaxStorableValue();
+
     double getSmallestNonZeroValue();
 }

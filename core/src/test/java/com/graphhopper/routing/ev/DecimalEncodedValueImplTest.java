@@ -146,7 +146,8 @@ public class DecimalEncodedValueImplTest {
 
     @Test
     public void testNextStorableValue_maxInfinity() {
-        DecimalEncodedValueImpl enc = new DecimalEncodedValueImpl("test", 4, 0, 3, false, false, false, true);
+        DecimalEncodedValueImpl enc = new DecimalEncodedValueImpl("test", 4, 0, 3,
+                false, false, false, true);
         enc.init(new EncodedValue.InitializerConfig());
         assertEquals(12, enc.getNextStorableValue(11.2));
         assertEquals(45, enc.getNextStorableValue(44.3));

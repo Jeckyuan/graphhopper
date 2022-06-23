@@ -37,7 +37,8 @@ public class IntEncodedValueImpl implements IntEncodedValue {
     final int bits;
     final boolean negateReverseDirection;
     final int minValue;
-    final int maxValue;
+    final int maxStorableValue;
+    int maxValue = 0;
 
     /**
      * There are multiple int values possible per edge. Here we specify the index into this integer array.
@@ -84,7 +85,7 @@ public class IntEncodedValueImpl implements IntEncodedValue {
         int max = (1 << bits) - 1;
         // negateReverseDirection: store the negative value only once, but for that we need the same range as maxValue for negative values
         this.minValue = negateReverseDirection ? -max : minValue;
-        this.maxValue = max + minValue;
+        this.maxStorableValue = max + minValue;
         // negateReverseDirection: we need twice the integer range, i.e. 1 more bit
         this.bits = negateReverseDirection ? bits + 1 : bits;
         this.negateReverseDirection = negateReverseDirection;
@@ -94,6 +95,7 @@ public class IntEncodedValueImpl implements IntEncodedValue {
     IntEncodedValueImpl(@JsonProperty("name") String name,
                         @JsonProperty("bits") int bits,
                         @JsonProperty("min_value") int minValue,
+                        @JsonProperty("max_storable_value") int maxStorableValue,
                         @JsonProperty("max_value") int maxValue,
                         @JsonProperty("negate_reverse_direction") boolean negateReverseDirection,
                         @JsonProperty("store_two_directions") boolean storeTwoDirections,
@@ -110,6 +112,7 @@ public class IntEncodedValueImpl implements IntEncodedValue {
         this.bits = bits;
         this.negateReverseDirection = negateReverseDirection;
         this.minValue = minValue;
+        this.maxStorableValue = maxStorableValue;
         this.maxValue = maxValue;
         this.fwdDataIndex = fwdDataIndex;
         this.bwdDataIndex = bwdDataIndex;
@@ -145,16 +148,17 @@ public class IntEncodedValueImpl implements IntEncodedValue {
     @Override
     public final void setInt(boolean reverse, IntsRef ref, int value) {
         checkValue(value);
+        maxValue = Math.max(value, maxValue);
         uncheckedSet(reverse, ref, value);
     }
 
     private void checkValue(int value) {
         if (!isInitialized())
             throw new IllegalStateException("EncodedValue " + getName() + " not initialized");
-        if (value > maxValue)
-            throw new IllegalArgumentException(name + " value too large for encoding: " + value + ", maxValue:" + maxValue);
+        if (value > maxStorableValue)
+            throw new IllegalArgumentException(name + " value too large for encoding: " + value + ", maxValue:" + maxStorableValue);
         if (value < minValue)
-            throw new IllegalArgumentException(name + " value too small for encoding " + value + ", minValue:" + minValue);
+            throw new IllegalArgumentException(name + " value too small for encoding: " + value + ", minValue:" + minValue);
     }
 
     final void uncheckedSet(boolean reverse, IntsRef ref, int value) {
@@ -213,5 +217,4 @@ public class IntEncodedValueImpl implements IntEncodedValue {
     public final String toString() {
         return getName();
     }
-
 }

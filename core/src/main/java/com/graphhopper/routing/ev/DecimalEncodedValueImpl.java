@@ -75,6 +75,7 @@ public final class DecimalEncodedValueImpl extends IntEncodedValueImpl implement
                             @JsonProperty("bits") int bits,
                             @JsonProperty("min_value") int minValue,
                             @JsonProperty("max_value") int maxValue,
+                            @JsonProperty("max_storable_value") int maxStorableValue,
                             @JsonProperty("negate_reverse_direction") boolean negateReverseDirection,
                             @JsonProperty("store_two_directions") boolean storeTwoDirections,
                             @JsonProperty("fwd_data_index") int fwdDataIndex,
@@ -87,7 +88,8 @@ public final class DecimalEncodedValueImpl extends IntEncodedValueImpl implement
                             @JsonProperty("default_is_infinity") boolean defaultIsInfinity,
                             @JsonProperty("use_maximum_as_infinity") boolean useMaximumAsInfinity) {
         // we need this constructor for Jackson
-        super(name, bits, minValue, maxValue, negateReverseDirection, storeTwoDirections, fwdDataIndex, bwdDataIndex, fwdShift, bwdShift, fwdMask, bwdMask);
+        super(name, bits, minValue, maxStorableValue, maxValue, negateReverseDirection, storeTwoDirections, fwdDataIndex,
+                bwdDataIndex, fwdShift, bwdShift, fwdMask, bwdMask);
         this.factor = factor;
         this.defaultIsInfinity = defaultIsInfinity;
         this.useMaximumAsInfinity = useMaximumAsInfinity;
@@ -99,7 +101,7 @@ public final class DecimalEncodedValueImpl extends IntEncodedValueImpl implement
             throw new IllegalStateException("Call init before using EncodedValue " + getName());
         if (Double.isInfinite(value)) {
             if (useMaximumAsInfinity) {
-                super.setInt(reverse, ref, maxValue);
+                super.setInt(reverse, ref, maxStorableValue);
                 return;
             } else if (defaultIsInfinity) {
                 super.setInt(reverse, ref, 0);
@@ -111,8 +113,9 @@ public final class DecimalEncodedValueImpl extends IntEncodedValueImpl implement
             throw new IllegalArgumentException("NaN value for " + getName() + " not allowed!");
 
         value /= factor;
-        if (value > maxValue)
-            throw new IllegalArgumentException(getName() + " value too large for encoding: " + value + ", maxValue:" + maxValue + ", factor: " + factor);
+        maxValue = Math.max((int) Math.round(value), maxValue);
+        if (value > maxStorableValue)
+            throw new IllegalArgumentException(getName() + " value too large for encoding: " + value + ", maxValue:" + maxStorableValue + ", factor: " + factor);
         if (value < minValue)
             throw new IllegalArgumentException(getName() + " value too small for encoding " + value + ", minValue:" + minValue + ", factor: " + factor);
 
@@ -122,16 +125,16 @@ public final class DecimalEncodedValueImpl extends IntEncodedValueImpl implement
     @Override
     public double getDecimal(boolean reverse, IntsRef ref) {
         int value = getInt(reverse, ref);
-        if (useMaximumAsInfinity && value == maxValue || defaultIsInfinity && value == 0)
+        if (useMaximumAsInfinity && value == maxStorableValue || defaultIsInfinity && value == 0)
             return Double.POSITIVE_INFINITY;
         return value * factor;
     }
 
     @Override
     public double getNextStorableValue(double value) {
-        if (!useMaximumAsInfinity && value > getMaxDecimal())
-            throw new IllegalArgumentException(getName() + ": There is no next storable value for " + value + ". max:" + getMaxDecimal());
-        else if (useMaximumAsInfinity && value > getMaxDecimal())
+        if (!useMaximumAsInfinity && value > getMaxStorableValue())
+            throw new IllegalArgumentException(getName() + ": There is no next storable value for " + value + ". max:" + getMaxStorableValue());
+        else if (useMaximumAsInfinity && value > getMaxStorableValue())
             return Double.POSITIVE_INFINITY;
         else
             return (factor * (int) Math.ceil(value / factor));
@@ -147,6 +150,11 @@ public final class DecimalEncodedValueImpl extends IntEncodedValueImpl implement
     @Override
     public double getMaxDecimal() {
         return maxValue * factor;
+    }
+
+    @Override
+    public double getMaxStorableValue() {
+        return maxStorableValue * factor;
     }
 
 }
